@@ -1,21 +1,16 @@
 const router = require('express').Router();
 const { authenticate } = require('../middleware/auth');
-const {
-  getNominees,
-  addNominee,
-  removeNominee,
-  acceptInvitation,
-  declineInvitation,
-} = require('../controllers/nomineeController');
+const { getNominees, addNominee, removeNominee, acceptInvitation, declineInvitation, resendInvitation } = require('../controllers/nomineeController');
 
-// ── Public — token-based (no auth needed) ──────────
+// Public — token-based
 router.post('/accept',  acceptInvitation);
 router.post('/decline', declineInvitation);
 
-// ── Protected — requires user JWT ──────────────────
+// Protected
 router.use(authenticate);
-router.get('/',                getNominees);
-router.post('/',               addNominee);
-router.delete('/:nomineeId',   removeNominee);
+router.get('/',                   getNominees);
+router.post('/',                  addNominee);
+router.delete('/:nomineeId',      removeNominee);
+router.post('/resend/:nomineeId', resendInvitation);
 
 module.exports = router;

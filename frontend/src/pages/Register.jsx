@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authAPI } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 import { Brand, Card, Input, PrimaryButton, Alert } from '../components/UI';
 
 // ── Step 1: Registration form
@@ -165,6 +166,7 @@ function VerifyEmailStep({ userId, email, onSuccess }) {
 
 export default function Register() {
   const navigate = useNavigate();
+  const { saveSession } = useAuth();
   const [step, setStep]   = useState(1); // 1 = form, 2 = verify
   const [userId, setUserId] = useState(null);
   const [email, setEmail] = useState('');
@@ -176,9 +178,8 @@ export default function Register() {
   };
 
   const handleVerified = (data) => {
-    // Save session and navigate to vault
-    localStorage.setItem('ev_token', data.token);
-    localStorage.setItem('ev_user', JSON.stringify(data.user));
+    // Save session in context + localStorage
+    saveSession(data.token, data.user);
     navigate('/vault');
   };
 

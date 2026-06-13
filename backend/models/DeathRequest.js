@@ -23,7 +23,7 @@ const deathRequestSchema = new mongoose.Schema({
   adminNotes: { type: String, default: null },
   reviewedBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    ref: 'Admin',
     default: null,
   },
   reviewedAt: { type: Date, default: null },

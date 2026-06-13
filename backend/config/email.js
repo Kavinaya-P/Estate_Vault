@@ -11,7 +11,7 @@ const createTransporter = () => {
   });
 };
 
-const sendEmail = async ({ to, subject, html }) => {
+const sendEmail = async ({ to, subject, html, attachments = [] }) => {
   try {
     if (!process.env.GMAIL_USER || process.env.GMAIL_USER === 'your_gmail@gmail.com') {
       logger.warn(`[EMAIL SIMULATED] To: ${to} | Subject: ${subject}`);
@@ -23,6 +23,7 @@ const sendEmail = async ({ to, subject, html }) => {
       to,
       subject,
       html,
+      attachments,
     });
     logger.info(`Email sent to ${to}: ${info.messageId}`);
     return info;

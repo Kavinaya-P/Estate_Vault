@@ -1,0 +1,8 @@
+{
+  "short_name": "Estate Vault",
+  "name": "Digital Estate Vault",
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#0a0a0b",
+  "background_color": "#0a0a0b"
+}

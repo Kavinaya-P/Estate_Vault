@@ -5,6 +5,12 @@ const User = require('../models/User');
 const { sendEmail, emailTemplates } = require('../config/email');
 const { auditLog, AUDIT_ACTIONS } = require('../config/audit');
 const { logger } = require('../config/logger');
+const getFrontendBaseUrl = () => (process.env.FRONTEND_URL || 'http://localhost:3000').replace(/\/$/, '');
+const getNomineePortalUrl = (nomineeToken, ownerEmail) => {
+  if (!nomineeToken || !ownerEmail) return `${getFrontendBaseUrl()}/nominee-portal`;
+  const query = new URLSearchParams({ token: nomineeToken, owner: ownerEmail });
+  return `${getFrontendBaseUrl()}/nominee-portal?${query.toString()}`;
+};
 
 // ─── TEST 1: Simulate 30 days passed — trigger dead man's switch ───
 const simulateTrigger = async (req, res) => {
@@ -34,7 +40,8 @@ const simulateTrigger = async (req, res) => {
     const notified = [];
 
     for (const nominee of nominees) {
-      const { subject, html } = emailTemplates.deadmanTriggered(nominee.fullName, owner.fullName);
+      const nomineePortalUrl = getNomineePortalUrl(nominee.nomineeAccessToken, owner?.email);
+      const { subject, html } = emailTemplates.deadmanTriggered(nominee.fullName, owner.fullName, nomineePortalUrl);
       await sendEmail({ to: nominee.email, subject, html });
       notified.push({ name: nominee.fullName, email: nominee.email, priority: nominee.priorityLevel });
     }
@@ -85,7 +92,7 @@ const simulateWarning = async (req, res) => {
 
     // Send warning email to the owner
     const owner = await User.findById(userId);
-    const checkinUrl = `${process.env.FRONTEND_URL}/deadman`;
+    const checkinUrl = `${getFrontendBaseUrl()}/deadman`;
     const { subject, html } = emailTemplates.deadmanWarning(owner.fullName, 4, checkinUrl);
     await sendEmail({ to: owner.email, subject, html });
 
@@ -141,7 +148,11 @@ const simulateNomineeFlow = async (req, res) => {
 
     // Step 2 — Simulate dead man trigger notification
     for (const nominee of nominees) {
-      const { subject, html } = emailTemplates.deadmanTriggered(nominee.fullName, owner.fullName);
+      const { subject, html } = emailTemplates.deadmanTriggered(
+        nominee.fullName,
+        owner.fullName,
+        getNomineePortalUrl(nominee.nomineeAccessToken, owner?.email)
+      );
       await sendEmail({ to: nominee.email, subject, html });
     }
 
@@ -167,7 +178,11 @@ const simulateNomineeFlow = async (req, res) => {
 
     // Step 4 — Vault unlock simulation (email only, not actually unlocking)
     if (activeNominee) {
-      const { subject, html } = emailTemplates.vaultUnlocked(activeNominee.fullName, owner.fullName);
+      const { subject, html } = emailTemplates.vaultUnlocked(
+        activeNominee.fullName,
+        owner.fullName,
+        getNomineePortalUrl(activeNominee.nomineeAccessToken, owner?.email)
+      );
       await sendEmail({ to: activeNominee.email, subject, html });
 
       steps.push({

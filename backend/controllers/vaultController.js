@@ -1,6 +1,7 @@
 const Vault = require('../models/Vault');
 const { encrypt, decrypt } = require('../config/encryption');
 const { auditLog, AUDIT_ACTIONS } = require('../config/audit');
+const { decodeAssetPayload } = require('../config/vaultAsset');
 
 // ─── GET /api/vault ────────────────────────────────
 // Get vault + decrypt all assets
@@ -11,18 +12,17 @@ const getVault = async (req, res) => {
 
     // Decrypt each asset
     const decryptedAssets = vault.assets.map(asset => {
-      try {
-        const decrypted = JSON.parse(decrypt(asset.encryptedAsset));
-        return {
-          id: asset._id,
-          assetType: asset.assetType,
-          label: asset.label,
-          createdAt: asset.createdAt,
-          ...decrypted,
-        };
-      } catch {
-        return { id: asset._id, assetType: asset.assetType, label: asset.label, error: 'Decryption failed' };
+      const decoded = decodeAssetPayload(asset.encryptedAsset, decrypt);
+      if (!decoded.ok || typeof decoded.data !== 'object' || decoded.data === null) {
+        return { id: asset._id, assetType: asset.assetType, label: asset.label, error: decoded.error || 'Decryption failed' };
       }
+      return {
+        id: asset._id,
+        assetType: asset.assetType,
+        label: asset.label,
+        createdAt: asset.createdAt,
+        ...decoded.data,
+      };
     });
 
     await auditLog({ userId: req.userId, action: AUDIT_ACTIONS.VAULT_ACCESSED, ipAddress: req.ip });
@@ -117,11 +117,14 @@ const getAsset = async (req, res) => {
     const asset = vault.assets.id(assetId);
     if (!asset) return res.status(404).json({ success: false, error: 'Asset not found.' });
 
-    const decrypted = JSON.parse(decrypt(asset.encryptedAsset));
+    const decoded = decodeAssetPayload(asset.encryptedAsset, decrypt);
+    if (!decoded.ok || typeof decoded.data !== 'object' || decoded.data === null) {
+      return res.status(422).json({ success: false, error: decoded.error || 'Failed to decrypt asset.' });
+    }
 
     return res.json({
       success: true,
-      asset: { id: asset._id, assetType: asset.assetType, label: asset.label, createdAt: asset.createdAt, ...decrypted }
+      asset: { id: asset._id, assetType: asset.assetType, label: asset.label, createdAt: asset.createdAt, ...decoded.data }
     });
   } catch (err) {
     return res.status(500).json({ success: false, error: 'Failed to retrieve asset.' });
