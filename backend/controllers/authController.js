@@ -30,6 +30,25 @@ const register = async (req, res) => {
 
     const existing = await User.findOne({ email });
     if (existing) {
+      if (existing.status === 'pending_verification') {
+        const otp = generateOtp();
+        const expiry = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
+        
+        await User.findByIdAndUpdate(existing._id, {
+          'emailVerification.otp': otp,
+          'emailVerification.expiry': expiry,
+        });
+
+        const { subject, html } = emailTemplates.emailVerificationOtp(existing.fullName, otp);
+        await sendEmail({ to: email, subject, html });
+
+        return res.status(201).json({
+          success: true,
+          message: 'A 6-digit verification code has been sent to your email.',
+          userId: existing._id,
+          email: existing.email,
+        });
+      }
       return res.status(409).json({ success: false, error: 'An account with this email already exists.' });
     }
 
