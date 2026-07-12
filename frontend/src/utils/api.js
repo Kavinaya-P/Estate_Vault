@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const api = axios.create({ baseURL: '/api' });
+const baseURL = process.env.REACT_APP_API_URL || '';
+const api = axios.create({ baseURL: `${baseURL}/api` });
 
 api.interceptors.request.use(cfg => {
   const token = localStorage.getItem('ev_token');
@@ -22,7 +23,7 @@ api.interceptors.response.use(
   }
 );
 
-const adminApi = axios.create({ baseURL: '/api/admin' });
+const adminApi = axios.create({ baseURL: `${baseURL}/api/admin` });
 
 adminApi.interceptors.request.use(cfg => {
   const token = localStorage.getItem('ev_admin_token');
@@ -87,13 +88,6 @@ export const deathAPI = {
   getVaultAccess:          (nomineeToken, email) => api.get('/death/vault-access', { params: { nomineeToken, vaultOwnerEmail: email } }),
 };
 
-export const testAPI = {
-  simulateTrigger:     () => api.post('/test/simulate/trigger'),
-  simulateWarning:     () => api.post('/test/simulate/warning'),
-  simulateNomineeFlow: () => api.post('/test/simulate/nominee-flow'),
-  reset:               () => api.post('/test/reset'),
-  getAuditLog:         () => api.get('/test/audit-log'),
-};
 
 export const adminAuthAPI = {
   login:     (data)           => adminApi.post('/auth/login', data),

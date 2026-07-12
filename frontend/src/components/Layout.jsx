@@ -6,7 +6,6 @@ const navItems = [
   { path: '/nominees', label: 'Nominees' },
   { path: '/deadman',  label: "Dead Man's Switch" },
   { path: '/messages', label: 'Messages' },
-  { path: '/test',     label: '🧪 Test' },
 ];
 
 export default function Layout({ children }) {

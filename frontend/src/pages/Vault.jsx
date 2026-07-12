@@ -137,9 +137,9 @@ function PasswordForm({ data, onChange }) {
       <Field label="Website / URL">
         <TextInput value={data.url || ''} onChange={e => set('url', e.target.value)} placeholder="https://..." />
       </Field>
-      <Field label="2FA / Recovery Codes">
+      {/* <Field label="2FA / Recovery Codes">
         <TextArea value={data.recovery || ''} onChange={e => set('recovery', e.target.value)} placeholder="Backup codes, TOTP secret, etc." rows={2} />
-      </Field>
+      </Field> */}
       <Field label="Notes">
         <TextArea value={data.notes || ''} onChange={e => set('notes', e.target.value)} placeholder="Additional information..." />
       </Field>

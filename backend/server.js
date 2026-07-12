@@ -53,7 +53,7 @@ app.use('/api/nominees',  require('./routes/nominees'));
 app.use('/api/deadman',   require('./routes/deadman'));
 app.use('/api/death',     require('./routes/death'));
 app.use('/api/messages',  require('./routes/messages'));
-app.use('/api/test',      require('./routes/test'));
+
 app.use('/api/admin',     require('./routes/admin'));
 
 app.get('/api/health', (req, res) => res.json({

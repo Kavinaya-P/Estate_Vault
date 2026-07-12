@@ -9,7 +9,6 @@ import Vault             from './pages/Vault';
 import Nominees          from './pages/Nominees';
 import DeadmanSwitch     from './pages/DeadmanSwitch';
 import ScheduledMessages from './pages/ScheduledMessages';
-import TestPanel         from './pages/TestPanel';
 import AdminLogin        from './pages/AdminLogin';
 import AdminPanel        from './pages/AdminPanel';
 import NomineePortal     from './pages/NomineePortal';
@@ -32,7 +31,6 @@ export default function App() {
           <Route path="/nominees" element={<Protected><Nominees /></Protected>} />
           <Route path="/deadman"  element={<Protected><DeadmanSwitch /></Protected>} />
           <Route path="/messages" element={<Protected><ScheduledMessages /></Protected>} />
-          <Route path="/test"     element={<Protected><TestPanel /></Protected>} />
 
           <Route path="/accept-nomination" element={<AcceptNomination />} />
           <Route path="/nominee-portal"    element={<NomineePortal />} />
