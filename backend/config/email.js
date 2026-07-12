@@ -162,6 +162,7 @@ const emailTemplates = {
         <p style="line-height:1.7;">Hi ${nomineeName},</p>
         <p style="line-height:1.7;">You are listed as a nominee for <strong style="color:#c9a84c;">${ownerName}</strong>'s Digital Estate Vault.</p>
         <p style="line-height:1.7;">The vault owner has not checked in for an extended period. If you believe the owner may be deceased, you may submit a death verification request via the secure nominee portal below.</p>
+        <p style="line-height:1.7;color:#c9a84c;"><strong>IMPORTANT:</strong> You have exactly 72 hours from the receipt of this email to upload the death certificate. If you fail to do so within this window, your access will be permanently revoked.</p>
         <a href="${portalUrl}" style="display:inline-block;margin:24px 0;padding:14px 28px;background:transparent;border:1px solid #c9a84c;color:#c9a84c;text-decoration:none;letter-spacing:2px;font-size:11px;text-transform:uppercase;">OPEN NOMINEE PORTAL</a>
         <p style="color:#5a5a6e;font-size:11px;margin-top:32px;">This is an automated notification from Digital Estate Vault.</p>
       </div>

@@ -34,16 +34,25 @@ const simulateTrigger = async (req, res) => {
       }
     );
 
-    // Notify nominees
-    const nominees = await Nominee.find({ vaultOwnerId: userId }).sort({ priorityLevel: 1 });
+    // Notify primary nominee first (or secondary if no primary)
+    const nominees = await Nominee.find({ vaultOwnerId: userId, status: 'accepted' }).sort({ priorityLevel: 1 });
     const owner    = await User.findById(userId);
     const notified = [];
+    
+    const primary = nominees.find(n => n.priorityLevel === 1);
+    const secondary = nominees.find(n => n.priorityLevel === 2);
+    const activeNominee = primary || secondary;
 
-    for (const nominee of nominees) {
-      const nomineePortalUrl = getNomineePortalUrl(nominee.nomineeAccessToken, owner?.email);
-      const { subject, html } = emailTemplates.deadmanTriggered(nominee.fullName, owner.fullName, nomineePortalUrl);
-      await sendEmail({ to: nominee.email, subject, html });
-      notified.push({ name: nominee.fullName, email: nominee.email, priority: nominee.priorityLevel });
+    if (activeNominee) {
+      const nomineePortalUrl = getNomineePortalUrl(activeNominee.nomineeAccessToken, owner?.email);
+      const { subject, html } = emailTemplates.deadmanTriggered(activeNominee.fullName, owner.fullName, nomineePortalUrl);
+      await sendEmail({ to: activeNominee.email, subject, html });
+      notified.push({ name: activeNominee.fullName, email: activeNominee.email, priority: activeNominee.priorityLevel });
+      
+      // Update DeadmanSwitch immediately if it escalated directly to secondary
+      if (!primary && secondary) {
+        await DeadmanSwitch.findOneAndUpdate({ userId }, { escalatedToSecondary: true, escalatedAt: new Date() });
+      }
     }
 
     await auditLog({
@@ -125,7 +134,7 @@ const simulateNomineeFlow = async (req, res) => {
   try {
     const userId  = req.userId;
     const owner   = await User.findById(userId);
-    const nominees = await Nominee.find({ vaultOwnerId: userId }).sort({ priorityLevel: 1 });
+    const nominees = await Nominee.find({ vaultOwnerId: userId, status: 'accepted' }).sort({ priorityLevel: 1 });
 
     if (nominees.length === 0) {
       return res.status(400).json({
@@ -147,33 +156,34 @@ const simulateNomineeFlow = async (req, res) => {
     });
 
     // Step 2 — Simulate dead man trigger notification
-    for (const nominee of nominees) {
+    let activeNominee = primary || secondary;
+    if (activeNominee) {
       const { subject, html } = emailTemplates.deadmanTriggered(
-        nominee.fullName,
+        activeNominee.fullName,
         owner.fullName,
-        getNomineePortalUrl(nominee.nomineeAccessToken, owner?.email)
+        getNomineePortalUrl(activeNominee.nomineeAccessToken, owner?.email)
       );
-      await sendEmail({ to: nominee.email, subject, html });
+      await sendEmail({ to: activeNominee.email, subject, html });
     }
 
     steps.push({
       step: 2,
       event: 'Dead Man\'s Switch Triggered',
-      description: `Nominees notified that owner hasn't checked in`,
-      emailsSent: nominees.map(n => n.email),
+      description: `Active priority nominee notified that owner hasn't checked in`,
+      emailSentTo: activeNominee ? activeNominee.email : 'None',
     });
 
     // Step 3 — Priority resolution logic
-    let activeNominee = primary?.status === 'accepted' ? primary : secondary;
     steps.push({
       step: 3,
-      event: 'Priority Resolution',
-      description: primary?.status === 'accepted'
-        ? `Primary nominee (${primary.fullName}) is active — they handle the request`
+      event: 'Priority & 72-Hour Resolution',
+      description: primary
+        ? `Primary nominee (${primary.fullName}) has 72 hours to upload the certificate.`
         : secondary
-          ? `Primary inactive/missing — escalated to secondary nominee (${secondary?.fullName})`
-          : 'No accepted nominees found — vault remains locked',
+          ? `No primary found. Secondary nominee (${secondary?.fullName}) immediately gets 72 hours to upload.`
+          : 'No accepted nominees found — vault remains permanently locked.',
       resolvedTo: activeNominee ? { name: activeNominee.fullName, email: activeNominee.email, priority: activeNominee.priorityLevel } : null,
+      note: 'If 72 hours pass without an upload, access is revoked and escalated to the next level.',
     });
 
     // Step 4 — Vault unlock simulation (email only, not actually unlocking)

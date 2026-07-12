@@ -18,6 +18,8 @@ const deadmanSchema = new mongoose.Schema({
   contestDeadline:    { type: Date, default: null },
   contestCancelled:   { type: Boolean, default: false },
   contestCancelledAt: { type: Date, default: null },
+  escalatedToSecondary: { type: Boolean, default: false },
+  escalatedAt:        { type: Date, default: null },
 }, { timestamps: true });
 
 module.exports = mongoose.model('DeadmanSwitch', deadmanSchema);

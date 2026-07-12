@@ -21,6 +21,6 @@ const twoFaLimiter = rateLimit({
   windowMs: 5 * 60 * 1000,
   max: 5,
   message: { success: false, error: 'Too many 2FA attempts. Wait 5 minutes.' },
-});
+}); 
 
 module.exports = { apiLimiter, authLimiter, twoFaLimiter };

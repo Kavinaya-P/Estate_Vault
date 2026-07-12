@@ -140,17 +140,62 @@ const runDeadmanCheck = async () => {
         triggered: true, triggeredAt: now,
         consecutiveMisses: deadman.consecutiveMisses + 1,
         contestDeadline, contestCancelled: false,
+        escalatedToSecondary: false,
+        escalatedAt: null
       });
       const nominees = await Nominee.find({ vaultOwnerId: user._id, status: 'accepted' }).sort({ priorityLevel: 1 });
-      for (const nominee of nominees) {
-        const portalUrl = nominee.nomineeAccessToken
-          ? getNomineePortalUrl(nominee.nomineeAccessToken, user.email)
+      const primary = nominees.find(n => n.priorityLevel === 1);
+      const secondary = nominees.find(n => n.priorityLevel === 2);
+      
+      const activeNominee = primary || secondary;
+      if (activeNominee) {
+        if (!primary && secondary) {
+          // No primary nominee, escalate immediately
+          await DeadmanSwitch.findByIdAndUpdate(deadman._id, { escalatedToSecondary: true, escalatedAt: now });
+        }
+        
+        const portalUrl = activeNominee.nomineeAccessToken
+          ? getNomineePortalUrl(activeNominee.nomineeAccessToken, user.email)
           : `${getFrontendBaseUrl()}/nominee-portal`;
-        const { subject, html } = emailTemplates.deadmanTriggered(nominee.fullName, user.fullName, portalUrl);
-        await sendEmail({ to: nominee.email, subject, html }).catch(() => {});
+        const { subject, html } = emailTemplates.deadmanTriggered(activeNominee.fullName, user.fullName, portalUrl);
+        await sendEmail({ to: activeNominee.email, subject, html }).catch(() => {});
       }
-      await auditLog({ userId: user._id, action: AUDIT_ACTIONS.DEADMAN_TRIGGERED, severity: 'critical', metadata: { contestDeadline, nomineesNotified: nominees.length } });
+      await auditLog({ userId: user._id, action: AUDIT_ACTIONS.DEADMAN_TRIGGERED, severity: 'critical', metadata: { contestDeadline, notifiedNominee: activeNominee?.email } });
       logger.warn(`Dead man triggered for ${user.email}`);
+    }
+
+    // Escalations (72 hours after trigger)
+    const DeathRequest = require('../models/DeathRequest');
+    const escalationThreshold = new Date(now.getTime() - 72 * 60 * 60 * 1000);
+    const escalationCandidates = await DeadmanSwitch.find({
+      triggered: true,
+      escalatedToSecondary: false,
+      triggeredAt: { $lt: escalationThreshold },
+    }).populate('userId');
+
+    for (const deadman of escalationCandidates) {
+      const user = deadman.userId;
+      if (!user || user.status === 'deceased') continue;
+      
+      // Check if primary submitted a request
+      const pendingReq = await DeathRequest.findOne({ userId: user._id, status: { $in: ['pending', 'under_review', 'approved'] } });
+      if (pendingReq) continue; // Primary did their job
+
+      await DeadmanSwitch.findByIdAndUpdate(deadman._id, {
+        escalatedToSecondary: true, escalatedAt: now
+      });
+
+      const nominees = await Nominee.find({ vaultOwnerId: user._id, status: 'accepted' });
+      const secondary = nominees.find(n => n.priorityLevel === 2);
+      
+      if (secondary) {
+        const portalUrl = secondary.nomineeAccessToken
+          ? getNomineePortalUrl(secondary.nomineeAccessToken, user.email)
+          : `${getFrontendBaseUrl()}/nominee-portal`;
+        const { subject, html } = emailTemplates.deadmanTriggered(secondary.fullName, user.fullName, portalUrl);
+        await sendEmail({ to: secondary.email, subject, html }).catch(() => {});
+        logger.warn(`Dead man escalated to secondary for ${user.email}`);
+      }
     }
   } catch (err) {
     logger.error('runDeadmanCheck error:', err);

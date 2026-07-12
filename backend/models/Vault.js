@@ -12,7 +12,7 @@ const vaultSchema = new mongoose.Schema({
   isLocked: { type: Boolean, default: false },
   assets: [
     {
-      encryptedAsset: { type: String }, // encrypted in Phase 2
+      encryptedAsset: { type: String }, 
       assetType: { type: String, enum: ['password', 'document', 'crypto', 'note', 'other'] },
       label: { type: String },
       createdAt: { type: Date, default: Date.now },

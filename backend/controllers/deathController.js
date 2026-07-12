@@ -126,6 +126,39 @@ const submitDeathRequest = async (req, res) => {
       return res.status(409).json({ success: false, error: 'A death verification request is already pending for this vault.' });
     }
 
+    // --- ESCALATION AND LOCKOUT LOGIC ---
+    const DeadmanSwitch = require('../models/DeadmanSwitch');
+    const deadman = await DeadmanSwitch.findOne({ userId: owner._id });
+
+    if (deadman && deadman.triggered) {
+      const now = new Date();
+      
+      if (!deadman.escalatedToSecondary) {
+        // First 72 hours (Primary only)
+        const hoursSinceTrigger = (now - deadman.triggeredAt) / (1000 * 60 * 60);
+        
+        if (hoursSinceTrigger > 72) {
+          return res.status(403).json({ success: false, error: 'Your time window to claim this vault has expired. The system will escalate this to the secondary nominee shortly.' });
+        }
+
+        if (nominee.priorityLevel !== 1) {
+          return res.status(403).json({ success: false, error: 'Only the primary nominee is authorized to submit during the first 72 hours after the trigger.' });
+        }
+      } else {
+        // Escalated to Secondary
+        const hoursSinceEscalation = deadman.escalatedAt ? ((now - deadman.escalatedAt) / (1000 * 60 * 60)) : 0;
+        
+        if (nominee.priorityLevel === 1) {
+          return res.status(403).json({ success: false, error: 'Your time window to claim this vault has expired. It has been escalated to the secondary nominee.' });
+        }
+        
+        if (nominee.priorityLevel === 2 && hoursSinceEscalation > 72) {
+          return res.status(403).json({ success: false, error: 'The time window to claim this vault has expired for all nominees.' });
+        }
+      }
+    }
+    // ------------------------------------
+
     let certificateFilePath = null;
     let certificateFileName = null;
     let certificateOriginalName = null;

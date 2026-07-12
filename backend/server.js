@@ -9,6 +9,7 @@ const { apiLimiter } = require('./middleware/rateLimiter');
 const { startJobs }  = require('./jobs/scheduler');
 
 const app = express();
+app.set('trust proxy', 1); //added on 2024-06-10 to trust proxy for rate limiting behind reverse proxy
 
 app.use(helmet());
 
