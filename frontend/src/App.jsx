@@ -5,6 +5,7 @@ import Layout from './components/Layout';
 
 import Login             from './pages/Login';
 import Register          from './pages/Register';
+import Home              from './pages/Home';
 import Vault             from './pages/Vault';
 import Nominees          from './pages/Nominees';
 import DeadmanSwitch     from './pages/DeadmanSwitch';
@@ -23,7 +24,7 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Navigate to="/vault" replace />} />
+          <Route path="/" element={<Home />} />
           <Route path="/login"    element={<Login />} />
           <Route path="/register" element={<Register />} />
 
