@@ -1,28 +1,56 @@
 const nodemailer = require('nodemailer');
+const { google } = require('googleapis');
 const { logger } = require('./logger');
 
-const createTransporter = () => {
+// ── OAuth2 Client Setup ────────────────────────────
+const getOAuth2Client = () => {
+  const OAuth2 = google.auth.OAuth2;
+  const oauth2Client = new OAuth2(
+    process.env.GMAIL_CLIENT_ID,
+    process.env.GMAIL_CLIENT_SECRET,
+    'https://developers.google.com/oauthplayground'
+  );
+  oauth2Client.setCredentials({
+    refresh_token: process.env.GMAIL_REFRESH_TOKEN,
+  });
+  return oauth2Client;
+};
+
+
+
+// ── Create Transporter ─────────────────────────────
+const createTransporter = async () => {
+  const oauth2Client = getOAuth2Client();
+  const accessTokenResponse = await oauth2Client.getAccessToken();
+  const accessToken = accessTokenResponse.token;
+
   return nodemailer.createTransport({
-    //service:'gmail',
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
-    requireTLS: true,
-    connectionTimeout: 10000,
+    service: 'gmail',
     auth: {
+      type: 'OAuth2',
       user: process.env.GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD,
+      clientId: process.env.GMAIL_CLIENT_ID,
+      clientSecret: process.env.GMAIL_CLIENT_SECRET,
+      refreshToken: process.env.GMAIL_REFRESH_TOKEN,
+      accessToken: accessToken,
     },
   });
 };
 
+
+// ── Send Email ─────────────────────────────────────
 const sendEmail = async ({ to, subject, html, attachments = [] }) => {
   try {
-    if (!process.env.GMAIL_USER || process.env.GMAIL_USER === 'your_gmail@gmail.com') {
+    if (
+      !process.env.GMAIL_CLIENT_ID ||
+      process.env.GMAIL_CLIENT_ID === 'your_client_id_here'
+    ) {
       logger.warn(`[EMAIL SIMULATED] To: ${to} | Subject: ${subject}`);
       return { simulated: true };
     }
-    const transporter = createTransporter();
+
+    const transporter = await createTransporter();
+
     const info = await transporter.sendMail({
       from: `"Digital Estate Vault" <${process.env.GMAIL_USER}>`,
       to,
@@ -30,13 +58,16 @@ const sendEmail = async ({ to, subject, html, attachments = [] }) => {
       html,
       attachments,
     });
+
     logger.info(`Email sent to ${to}: ${info.messageId}`);
     return info;
+
   } catch (err) {
     logger.error(`Email failed to ${to}: ${err.message}`);
     throw err;
   }
 };
+
 
 // ── Shared style block ─────────────────────────────
 const styles = `
