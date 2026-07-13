@@ -18,27 +18,7 @@ const getOAuth2Client = () => {
 
 
 
-// ── Create Transporter ─────────────────────────────
-const createTransporter = async () => {
-  const oauth2Client = getOAuth2Client();
-  const accessTokenResponse = await oauth2Client.getAccessToken();
-  const accessToken = accessTokenResponse.token;
-
-  return nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      type: 'OAuth2',
-      user: process.env.GMAIL_USER,
-      clientId: process.env.GMAIL_CLIENT_ID,
-      clientSecret: process.env.GMAIL_CLIENT_SECRET,
-      refreshToken: process.env.GMAIL_REFRESH_TOKEN,
-      accessToken: accessToken,
-    },
-  });
-};
-
-
-// ── Send Email ─────────────────────────────────────
+// ── Send Email (Gmail API / Port 443) ──────────────
 const sendEmail = async ({ to, subject, html, attachments = [] }) => {
   try {
     if (
@@ -49,7 +29,14 @@ const sendEmail = async ({ to, subject, html, attachments = [] }) => {
       return { simulated: true };
     }
 
-    const transporter = await createTransporter();
+    const oauth2Client = getOAuth2Client();
+
+    // Nodemailer is used purely to build the raw MIME message string.
+    // It DOES NOT open a network connection (bypassing Render SMTP block).
+    const transporter = nodemailer.createTransport({
+      streamTransport: true,
+      buffer: true
+    });
 
     const info = await transporter.sendMail({
       from: `"Digital Estate Vault" <${process.env.GMAIL_USER}>`,
@@ -59,8 +46,23 @@ const sendEmail = async ({ to, subject, html, attachments = [] }) => {
       attachments,
     });
 
-    logger.info(`Email sent to ${to}: ${info.messageId}`);
-    return info;
+    // Base64URL encode the raw email string for the Gmail API
+    const encodedMessage = info.message.toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+
+    // Send the raw email via HTTPS (Port 443)
+    const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+    const res = await gmail.users.messages.send({
+      userId: 'me',
+      requestBody: {
+        raw: encodedMessage,
+      },
+    });
+
+    logger.info(`Email sent to ${to}: ${res.data.id}`);
+    return res.data;
 
   } catch (err) {
     logger.error(`Email failed to ${to}: ${err.message}`);
