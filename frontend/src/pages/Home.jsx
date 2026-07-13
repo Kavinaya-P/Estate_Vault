@@ -59,7 +59,7 @@ export default function Home() {
         </Card>
 
         <div style={{ textAlign: 'center', marginTop: 40, fontSize: 12, color: 'var(--muted)', letterSpacing: '0.05em' }}>
-          For queries contact: <a href="mailto:kavinaya.p@gmail.com" style={{ color: 'var(--gold)', textDecoration: 'none' }}>kavinaya.p@gmail.com</a>
+          For queries contact: <a href={`mailto:${import.meta.env.VITE_CONTACT_EMAIL }`} style={{ color: 'var(--gold)', textDecoration: 'none' }}>{import.meta.env.VITE_CONTACT_EMAIL }</a>
         </div>
       </div>
     </div>
